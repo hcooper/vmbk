@@ -5,7 +5,7 @@ BACKUP_PATH=/mnt/store1/backups/vm-images
 LIVE_PATH=/var/lib/libvirt/images/
 CONVERT=1
 
-sub_update_backing_file_path() {
+sub_strip_backing_path() {
   for IMG in $(ls -r $BACKUP_PATH); do
     BACKING_FILE=$(qemu-img info $IMG | grep "backing file:" | awk '{print $3}' || true)
     if [ -z $BACKING_FILE ]; then
@@ -25,19 +25,24 @@ sub_update_backing_file_path() {
   done
 }
 
-sub_validate_backing_chain() {
+sub_validate_chain() {
+  cd $BACKUP_PATH
   for IMG in $(ls -r $BACKUP_PATH); do
-    BROKEN_CHAIN=0
-    qemu-img info --backing-chain $IMG &> /dev/null || BROKEN_CHAIN=1; true
-   if [[ $BROKEN_CHAIN -ne 0 ]]; then
-     echo $IMG
-   fi
+    qemu-img info --backing-chain $IMG &> /dev/null || (echo $IMG; true)
+  done
+}
+
+sub_do_backup() {
+  VMS="monitor chefserver bastion"
+  for VM in $VMS; do
+    /home/hcooper/backup-tools/fi-backup.sh -d -v -q -b $BACKUP_PATH $VM >> /tmp/backup.log;
   done
 }
 
 sub_help() {
-  echo validate_backing_chain
-  echo update_backing_file_path
+  echo validate_chain
+  echo do_backup
+  echo strip_backing_path
   echo help
   exit
 }
