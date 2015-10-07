@@ -1,0 +1,58 @@
+#!/bin/bash
+set -euo pipefail
+
+BACKUP_PATH=/mnt/store1/backups/vm-images
+LIVE_PATH=/var/lib/libvirt/images/
+CONVERT=1
+
+sub_update_backing_file_path() {
+  for IMG in $(ls -r $BACKUP_PATH); do
+    BACKING_FILE=$(qemu-img info $IMG | grep "backing file:" | awk '{print $3}' || true)
+    if [ -z $BACKING_FILE ]; then
+      echo $IMG no backing file
+    fi
+    if [[ "$BACKING_FILE" =~ $LIVE_PATH ]]; then
+      if [ $CONVERT == 1 ]; then
+        echo $IMG bad - converting
+        NEW_BACKING_FILE=$(echo $BACKING_FILE | sed -e "s,$LIVE_PATH,,")
+        qemu-img rebase -u -b $NEW_BACKING_FILE $IMG
+      else
+        echo $IMG needs converting
+      fi
+    else
+      echo $IMG good
+    fi
+  done
+}
+
+sub_validate_backing_chain() {
+  for IMG in $(ls -r $BACKUP_PATH); do
+    BROKEN_CHAIN=0
+    qemu-img info --backing-chain $IMG &> /dev/null || BROKEN_CHAIN=1; true
+   if [[ $BROKEN_CHAIN -ne 0 ]]; then
+     echo $IMG
+   fi
+  done
+}
+
+sub_help() {
+  echo validate_backing_chain
+  echo update_backing_file_path
+  echo help
+  exit
+}
+
+if [ -z ${1+x} ]; then
+  sub_help
+fi
+
+subcommand=$1
+case $subcommand in
+  "" | "-h" | "--help")
+    sub_help
+    ;;
+  *)
+    shift
+    sub_${subcommand} $@
+    ;;
+esac
