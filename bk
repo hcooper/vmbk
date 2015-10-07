@@ -1,9 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+VMS="plexserver monitor chefserver bastion"
 BACKUP_PATH=/mnt/store1/backups/vm-images
 LIVE_PATH=/var/lib/libvirt/images/
 CONVERT=1
+
+cd $BACKUP_PATH
 
 sub_strip_backing_path() {
   for IMG in $(ls -r $BACKUP_PATH); do
@@ -26,17 +29,17 @@ sub_strip_backing_path() {
 }
 
 sub_validate_chain() {
-  cd $BACKUP_PATH
   for IMG in $(ls -r $BACKUP_PATH); do
     qemu-img info --backing-chain $IMG &> /dev/null || (echo $IMG; true)
   done
 }
 
 sub_do_backup() {
-  VMS="monitor chefserver bastion"
   for VM in $VMS; do
     /home/hcooper/backup-tools/fi-backup.sh -d -v -q -b $BACKUP_PATH $VM >> /tmp/backup.log;
   done
+  sub_strip_backing_path
+  sub_validate_chain
 }
 
 sub_help() {
