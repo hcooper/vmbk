@@ -29,9 +29,40 @@ sub_strip_backing_path() {
 }
 
 sub_validate_chain() {
+  BROKEN_IMGS=""
+  HEALTHY=""
   for IMG in $(ls -r $BACKUP_PATH); do
-    qemu-img info --backing-chain $IMG &> /dev/null || (echo $IMG; true)
+    if [[ $HEALTHY =~ $IMG ]]; then
+      continue
+    fi
+
+    # To distinguish between a partial, a full, and a bad image we
+    # need both the output and retval. So we disable "set -e" briefly.
+    set +e
+    OUTPUT=$(qemu-img info --backing-chain $IMG 2> /dev/null)
+    retval=$?
+    set -e
+
+    if [ $retval -ne 0 ]; then
+      BROKEN_IMGS="$BROKEN_IMGS $IMG"
+      continue
+    fi
+
+
+    # Parse the output for a chain of images.
+    CHAIN=$(echo "$OUTPUT" | grep "backing file:" | awk '{print $3}' || true)
+
+    # Add the chain to the list of healthy images
+    if [ -n "$CHAIN" ]; then
+      HEALTHY="$HEALTHY $CHAIN"
+    fi
   done
+
+  if [ -n "$BROKEN_IMGS" ]; then
+    echo "$BROKEN_IMGS"
+    exit 1
+  fi
+
 }
 
 sub_do_backup() {
@@ -42,10 +73,17 @@ sub_do_backup() {
   sub_validate_chain
 }
 
+sub_consolidate() {
+  for VM in $VMS; do
+    /home/hcooper/backup-tools/fi-backup.sh -d -v -c $VM >> /tmp/backup.log;
+  done
+}
+
 sub_help() {
   echo validate_chain
   echo do_backup
   echo strip_backing_path
+  echo consolidate
   echo help
   exit
 }
