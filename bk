@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-VMS="plexserver monitor chefserver bastion"
+VMS="plexserver monitor chefserver bastion grapher"
 BACKUP_PATH=/mnt/store1/backups/vm-images
 LIVE_PATH=/var/lib/libvirt/images/
 CONVERT=1
@@ -10,20 +10,15 @@ cd $BACKUP_PATH
 
 sub_strip_backing_path() {
   for IMG in $(ls -r $BACKUP_PATH); do
-    BACKING_FILE=$(qemu-img info $IMG | grep "backing file:" | awk '{print $3}' || true)
-    if [ -z $BACKING_FILE ]; then
-      echo $IMG no backing file
-    fi
+    BACKING_FILE=$(qemu-img info "$IMG" | grep "backing file:" | awk '{print $3}' || true)
     if [[ "$BACKING_FILE" =~ $LIVE_PATH ]]; then
       if [ $CONVERT == 1 ]; then
-        echo $IMG bad - converting
-        NEW_BACKING_FILE=$(echo $BACKING_FILE | sed -e "s,$LIVE_PATH,,")
-        qemu-img rebase -u -b $NEW_BACKING_FILE $IMG
+        echo converting "$IMG"
+        NEW_BACKING_FILE=$(BACKING_FILE//LIVE_PATH/)
+        qemu-img rebase -u -b "$NEW_BACKING_FILE" "$IMG"
       else
-        echo $IMG needs converting
+        echo "$IMG" needs converting
       fi
-    else
-      echo $IMG good
     fi
   done
 }
@@ -39,7 +34,7 @@ sub_validate_chain() {
     # To distinguish between a partial, a full, and a bad image we
     # need both the output and retval. So we disable "set -e" briefly.
     set +e
-    OUTPUT=$(qemu-img info --backing-chain $IMG 2> /dev/null)
+    OUTPUT=$(qemu-img info --backing-chain "$IMG" 2> /dev/null)
     retval=$?
     set -e
 
@@ -47,7 +42,6 @@ sub_validate_chain() {
       BROKEN_IMGS="$BROKEN_IMGS $IMG"
       continue
     fi
-
 
     # Parse the output for a chain of images.
     CHAIN=$(echo "$OUTPUT" | grep "backing file:" | awk '{print $3}' || true)
@@ -67,7 +61,7 @@ sub_validate_chain() {
 
 sub_do_backup() {
   for VM in $VMS; do
-    /home/hcooper/backup-tools/fi-backup.sh -d -v -q -b $BACKUP_PATH $VM >> /tmp/backup.log;
+    /home/hcooper/backup-tools/fi-backup.sh -d -v -q -b $BACKUP_PATH "$VM" >> /tmp/backup.log;
   done
   sub_strip_backing_path
   sub_validate_chain
@@ -75,7 +69,7 @@ sub_do_backup() {
 
 sub_consolidate() {
   for VM in $VMS; do
-    /home/hcooper/backup-tools/fi-backup.sh -d -v -c $VM >> /tmp/backup.log;
+    /home/hcooper/backup-tools/fi-backup.sh -d -v -c "$VM" >> /tmp/backup.log;
   done
 }
 
@@ -88,7 +82,7 @@ sub_help() {
   exit
 }
 
-if [ -z ${1+x} ]; then
+if [ -z "${1+x}" ]; then
   sub_help
 fi
 
@@ -99,6 +93,6 @@ case $subcommand in
     ;;
   *)
     shift
-    sub_${subcommand} $@
+    sub_"${subcommand}" "$@"
     ;;
 esac
