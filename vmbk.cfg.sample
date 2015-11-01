@@ -1,0 +1,17 @@
+# List of VMs to backup.
+VMS="mailserver1 mailserver2 webserver1 webserver2"
+
+# Directory to store the backups.
+BACKUP_PATH=/mnt/nfs/backups/vm-images
+
+# Directory to the live VM images.
+LIVE_PATH=/var/lib/libvirt/images
+
+# Path to fi-backup.sh
+FIBACKUP=/usr/local/bin/fi-backup.sh
+
+# Log file path
+LOGFILE=/tmp/backup.log
+
+# Flag to control modifying backing path.
+CONVERT=1

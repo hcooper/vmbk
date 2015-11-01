@@ -1,11 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-VMS="plexserver monitor chefserver bastion grapher"
-BACKUP_PATH=/mnt/store1/backups/vm-images
-LIVE_PATH=/var/lib/libvirt/images/
-CONVERT=1
-
+source vmbk.cfg
 cd $BACKUP_PATH
 
 sub_strip_backing_path() {
@@ -61,7 +57,7 @@ sub_validate_chain() {
 
 sub_do_backup() {
   for VM in $VMS; do
-    /home/hcooper/backup-tools/fi-backup.sh -d -v -q -b $BACKUP_PATH "$VM" >> /tmp/backup.log;
+    $FIBACKUP -d -v -q -b $BACKUP_PATH "$VM" >> $LOGFILE;
   done
   sub_strip_backing_path
   sub_validate_chain
@@ -69,7 +65,7 @@ sub_do_backup() {
 
 sub_consolidate() {
   for VM in $VMS; do
-    /home/hcooper/backup-tools/fi-backup.sh -d -v -c "$VM" >> /tmp/backup.log;
+    $FIBACKUP -d -v -c "$VM" >> $LOGFILE;
   done
 }
 
