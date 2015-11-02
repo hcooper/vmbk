@@ -10,7 +10,7 @@ sub_strip_backing_path() {
     if [[ "$BACKING_FILE" =~ $LIVE_PATH ]]; then
       if [ $CONVERT == 1 ]; then
         echo converting "$IMG"
-        NEW_BACKING_FILE=$(BACKING_FILE//LIVE_PATH/)
+        NEW_BACKING_FILE=${BACKING_FILE//$LIVE_PATH/}
         qemu-img rebase -u -b "$NEW_BACKING_FILE" "$IMG"
       else
         echo "$IMG" needs converting
